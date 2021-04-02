@@ -15,6 +15,8 @@ import (
 // A ReceiveFunc receives a single inbound packet from the network.
 // It writes the data into b. n is the length of the packet.
 // ep is the remote endpoint.
+// If a ReceiveFunc is called with b == nil,
+// it should return 0, nil, ReceiveFuncName("a useful name for this receive function").
 type ReceiveFunc func(b []byte) (n int, ep Endpoint, err error)
 
 // A Bind listens on a port for both IPv6 and IPv4 UDP traffic.
@@ -103,3 +105,7 @@ var (
 	ErrBindAlreadyOpen   = errors.New("bind is already open")
 	ErrWrongEndpointType = errors.New("endpoint type does not correspond with bind type")
 )
+
+type ReceiveFuncName string
+
+func (s ReceiveFuncName) Error() string { return string(s) }

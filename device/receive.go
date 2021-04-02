@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -69,21 +70,25 @@ func (peer *Peer) keepKeyFreshReceiving() {
  * IPv4 and IPv6 (separately)
  */
 func (device *Device) RoutineReceiveIncoming(recv conn.ReceiveFunc) {
+	recvName := fmt.Sprintf("%p", recv)
+	_, _, err := recv(nil)
+	if name, ok := err.(conn.ReceiveFuncName); ok {
+		recvName = string(name)
+	}
 	defer func() {
-		device.log.Verbosef("Routine: receive incoming %p - stopped", recv)
+		device.log.Verbosef("Routine: receive incoming %s - stopped", recvName)
 		device.queue.decryption.wg.Done()
 		device.queue.handshake.wg.Done()
 		device.net.stopping.Done()
 	}()
 
-	device.log.Verbosef("Routine: receive incoming %p - started", recv)
+	device.log.Verbosef("Routine: receive incoming %s - started", recvName)
 
 	// receive datagrams until conn is closed
 
 	buffer := device.GetMessageBuffer()
 
 	var (
-		err         error
 		size        int
 		endpoint    conn.Endpoint
 		deathSpiral int

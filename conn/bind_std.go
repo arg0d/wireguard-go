@@ -154,6 +154,13 @@ func (bind *StdNetBind) Close() error {
 
 func makeReceiveFunc(conn *net.UDPConn, isIPv4 bool) ReceiveFunc {
 	return func(buff []byte) (int, Endpoint, error) {
+		if buff == nil {
+			name := "StdNetBind.ReceiveIPv4"
+			if !isIPv4 {
+				name = "StdNetBind.ReceiveIPv46"
+			}
+			return 0, nil, ReceiveFuncName(name)
+		}
 		n, endpoint, err := conn.ReadFromUDP(buff)
 		if isIPv4 && endpoint != nil {
 			endpoint.IP = endpoint.IP.To4()
