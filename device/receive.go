@@ -9,7 +9,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
+	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,6 +67,30 @@ func (peer *Peer) keepKeyFreshReceiving() {
 	}
 }
 
+func nameOfReceiveFunction(fn conn.ReceiveFunc) string {
+	ptr := reflect.ValueOf(fn).Pointer()
+	name := runtime.FuncForPC(ptr).Name()
+	if strings.HasSuffix(name, "-fm") {
+		name = name[:len(name)-3]
+	}
+	if idx := strings.LastIndexByte(name, '/'); idx != -1 {
+		name = name[idx+1:]
+	}
+	if wantDigit := name[len(name)-1]; wantDigit >= '0' && wantDigit <= '9' && strings.HasSuffix(name[:len(name)-1], ".func") {
+		name = name[:len(name)-6]
+	}
+	if idx := strings.LastIndexByte(name, '.'); idx != -1 {
+		name = name[idx+1:]
+	}
+	if name == "" {
+		return fmt.Sprintf("0x%016x", ptr)
+	}
+	if last := name[len(name)-1]; last == '4' || last == '6' {
+		return fmt.Sprintf("v%c", last)
+	}
+	return name
+}
+
 /* Receives incoming datagrams for the device
  *
  * Every time the bind is updated a new routine is started for
@@ -70,13 +98,13 @@ func (peer *Peer) keepKeyFreshReceiving() {
  */
 func (device *Device) RoutineReceiveIncoming(recv conn.ReceiveFunc) {
 	defer func() {
-		device.log.Verbosef("Routine: receive incoming %p - stopped", recv)
+		device.log.Verbosef("Routine: receive incoming %s - stopped", nameOfReceiveFunction(recv))
 		device.queue.decryption.wg.Done()
 		device.queue.handshake.wg.Done()
 		device.net.stopping.Done()
 	}()
 
-	device.log.Verbosef("Routine: receive incoming %p - started", recv)
+	device.log.Verbosef("Routine: receive incoming %s - started", nameOfReceiveFunction(recv))
 
 	// receive datagrams until conn is closed
 
